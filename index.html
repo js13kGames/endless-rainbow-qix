@@ -18,6 +18,9 @@
         #t-right { bottom: 44px; left: 84px; }
         #t-draw { right: 6px; bottom: 44px; width: 54px; height: 54px; font-size: 10px; font-weight: bold; background: rgba(255,100,150,0.15); border-color: rgba(255,100,150,0.4); border-radius: 50%; }
         .is-mobile #touch-controls { display: block; }
+        @media (pointer: coarse), (max-width: 767px) {
+            #touch-controls { display: block; }
+        }
         @media (max-width: 640px) {
             #info h2 { font-size: 15px; margin: 4px 0; }
             #info p { font-size: 10px; margin: 2px 0; }
@@ -59,7 +62,10 @@ let level = 0, lives = 3, pct = 0, target = 55, seed = 0, enemies = [], shots = 
 function isMobile() {
     return window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 768 || /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
-if(isMobile()) document.body.classList.add('is-mobile');
+function updateMobileClass() { document.body.classList.toggle('is-mobile', isMobile()); }
+updateMobileClass();
+window.addEventListener('resize', updateMobileClass);
+window.addEventListener('orientationchange', updateMobileClass);
 
 function showNotice(text) { notice = text; noticeTime = 90; }
 function burst(x, y, color) { effects.push({x, y, color, time: 1}); }
