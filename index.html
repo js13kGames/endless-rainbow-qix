@@ -30,7 +30,7 @@
 <body>
     <div id="info">
         <h2>Endless Rainbow Qix</h2>
-        <p>Move with WASD / Arrow keys. <strong>Hold SPACE</strong> to leave a trail and claim territory!</p>
+        <p>Move with WASD / Arrow keys. <strong>Hold SPACE</strong> to leave a trail and claim territory! Press M to toggle sound.</p>
         <p>Level: <span id="level">1</span> | Covered: <span id="pct">0</span>% | Goal: <span id="target">55</span>% | Lives: <span id="lives">3</span> | Enemies: <span id="enemies">0</span></p>
     </div>
     <div id="game-wrap">
@@ -57,7 +57,7 @@ for(let r=0; r<ROWS; r++) { grid[r][0] = 1; grid[r][COLS-1] = 1; }
 for(let c=0; c<COLS; c++) { grid[0][c] = 1; grid[ROWS-1][c] = 1; }
 
 let player = { r: 0, c: 0, drawing: false, turns: 0, slow: false, rainbow: 0, dr: 0, dc: 1, lastDr: 0, lastDc: 0 };
-let level = 0, lives = 3, pct = 0, target = 55, seed = 0, enemies = [], shots = [], playerShots = [], gems = [], effects = [], notice = '', noticeTime = 0, fade = 0, fadeWait = 45, started = false, blink = 0, audio, moveCooldown = 0;
+let level = 0, lives = 3, pct = 0, target = 55, seed = 0, enemies = [], shots = [], playerShots = [], gems = [], effects = [], notice = '', noticeTime = 0, fade = 0, fadeWait = 45, started = false, blink = 0, audio, muted = false, moveCooldown = 0;
 
 function isMobile() {
     return window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 768 || /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -70,9 +70,19 @@ window.addEventListener('orientationchange', updateMobileClass);
 function showNotice(text) { notice = text; noticeTime = 90; }
 function burst(x, y, color) { effects.push({x, y, color, time: 1}); }
 function sound(type) {
-    if(!audio) audio = new AudioContext();
-    let n = audio.createOscillator(), g = audio.createGain(), f = {move:220, enemy:90, hit:55, kill:520, gem:700, fire:360}[type] || 220;
-    n.frequency.value = f; n.type = type === 'fire' || type === 'gem' ? 'sine' : 'square'; g.gain.value = .035; n.connect(g); g.connect(audio.destination); n.start(); n.stop(audio.currentTime + (type === 'kill' ? .14 : .06));
+    if(muted) return;
+    if(!audio) {
+        let AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if(!AudioContextClass) return;
+        try { audio = new AudioContextClass(); } catch(e) { return; }
+    }
+    let play = () => {
+        if(muted || audio.state !== 'running') return;
+        let n = audio.createOscillator(), g = audio.createGain(), f = {move:220, enemy:90, hit:55, kill:520, gem:700, fire:360}[type] || 220;
+        n.frequency.value = f; n.type = type === 'fire' || type === 'gem' ? 'sine' : 'square'; g.gain.value = .035; n.connect(g); g.connect(audio.destination); n.start(); n.stop(audio.currentTime + (type === 'kill' ? .14 : .06));
+    };
+    if(audio.state === 'running') play();
+    else audio.resume().then(play).catch(() => {});
 }
 function collectGem(gem) {
     if(gem.type) { player.rainbow = 300; showNotice('Rainbow gem: rainbow fire!'); }
@@ -116,7 +126,13 @@ function newLevel() {
 newLevel();
 
 let keys = {};
-window.onkeydown = e => { if(e.key === ' ' && !started) { started = true; infoEl.style.display = ''; if(audio) audio.resume(); else sound('gem'); } keys[e.key.toLowerCase()] = true; if(e.key === ' ') e.preventDefault(); };
+function startGame() { if(started) return; started = true; infoEl.style.display = ''; sound('gem'); }
+window.onkeydown = e => {
+    if(e.key === ' ' && !started) startGame();
+    if(e.key.toLowerCase() === 'm' && !e.repeat) { muted = !muted; showNotice(muted ? 'Sound off' : 'Sound on'); }
+    keys[e.key.toLowerCase()] = true;
+    if(e.key === ' ') e.preventDefault();
+};
 window.onkeyup = e => keys[e.key.toLowerCase()] = false;
 
 // Touch controls
@@ -128,7 +144,7 @@ window.onkeyup = e => keys[e.key.toLowerCase()] = false;
         let k = map[id];
         el.addEventListener('touchstart', e => { 
             e.preventDefault(); 
-            if(k === ' ' && !started) { started = true; infoEl.style.display = ''; if(audio) audio.resume(); else sound('gem'); }
+            if(k === ' ' && !started) startGame();
             keys[k] = true; 
             el.style.opacity = '0.85'; 
         });
